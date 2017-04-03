@@ -11,10 +11,10 @@ port = 51714
 # ip = socket.inet_aton('127.0.0.2')
 # print socket.inet_ntoa(ip)
 
-s.bind(('127.0.0.1', 32345))
+# s.bind(('127.0.0.1', 32345))
 s.connect((host, port))
 
-# s.send('Hi pls send me the file!')
+s.send('Hi pls send me the file!')
 
 file_data = ''
 
