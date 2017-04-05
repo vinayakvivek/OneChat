@@ -1,6 +1,8 @@
 import socket
 import time
 
+BUFFER_SIZE = 100
+
 server_socket = socket.socket(socket.AF_INET, 
 							  socket.SOCK_STREAM)
 
@@ -14,9 +16,23 @@ server_socket.listen(5)
 print('waiting for connection...')
 
 while True:
+	print('here1')
 	client_socket, addr = server_socket.accept();
-	# print type(addr)
-	print addr
-	# print("Got a connection from %s" % (socket.inet_ntoa(addr)))
-	client_socket.send("Hi")
+	client_socket.send('Hi !!')
+
+	# print('here2')
+
+	while True:
+		data = client_socket.recv(BUFFER_SIZE)
+		if data == 'q':
+			break
+
+		print('client : %s' % (data))
+
+		data = raw_input('server : ')
+		client_socket.send(data)
+
+	client_socket.send('bye')
 	client_socket.close()
+
+	break
