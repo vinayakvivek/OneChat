@@ -33,6 +33,7 @@ def chat_client():
         s.send(password)
 
         if s.recv(RECV_BUFFER).rstrip() == '1':
+            print('logged in !')
             break
         else:
             print('Invalid username/password! pls try again')

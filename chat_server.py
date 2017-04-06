@@ -1,14 +1,40 @@
 # chat_server.py
  
 import sys, socket, select
+import thread
+ 
+def someFunc():
+    print "someFunc was called"
+ 
+# thread.start_new_thread(someFunc, ())
 
 HOST = 'localhost' 
 SOCKET_LIST = []
 RECV_BUFFER = 4096 
 PORT = 9009
 
-def log_in(username, password):
-    return username == 'user' and password == 'pass'
+def log_in(server_socket, cliet_socket):
+    i = 0
+    while True:
+        print(i)
+        i += 1
+        
+        print('get username : ')
+        username = cliet_socket.recv(RECV_BUFFER).rstrip()
+        print(username)
+
+        print('get pass : ')
+        password = cliet_socket.recv(RECV_BUFFER).rstrip()
+        print(password)
+
+        if username == 'user' and password == 'pass':
+            print(cliet_socket.getpeername(), ' joined!')
+            cliet_socket.send('1')
+            SOCKET_LIST.append(cliet_socket)
+            break
+        else:
+            cliet_socket.send('0')
+            print('invalid username/pass')
 
 
 def chat_server():
@@ -27,32 +53,32 @@ def chat_server():
 
         # get the list sockets which are ready to be read through select
         # 4th arg, time_out  = 0 : poll and never block
-        ready_to_read,ready_to_write,in_error = select.select(SOCKET_LIST,[],[],3)
+        ready_to_read,ready_to_write,in_error = select.select(SOCKET_LIST,[],[],1)
 
         # print('SOCKET_LIST : ', SOCKET_LIST)
-        # print(ready_to_read, ready_to_write, in_error)
+        print(ready_to_read, ready_to_write, in_error)
       
         for sock in ready_to_read:
             # a new connection request recieved
             if sock == server_socket: 
                 sockfd, addr = server_socket.accept()
-                SOCKET_LIST.append(sockfd)
+                thread.start_new_thread(log_in, (server_socket, sockfd))
 
-                # get username
-                username = sockfd.recv(RECV_BUFFER)
+                # # get username
+                # username = sockfd.recv(RECV_BUFFER)
 
-                # get password
-                password = sockfd.recv(RECV_BUFFER)
+                # # get password
+                # password = sockfd.recv(RECV_BUFFER)
 
-                print((username.rstrip()), (password.rstrip()))
+                # print((username.rstrip()), (password.rstrip()))
 
-                if log_in(username.rstrip(), password.rstrip()):
-                    print "Client (%s, %s) connected" % addr
-                    sockfd.send('1')
-                    broadcast(server_socket, sockfd, "[%s:%s] entered our chatting room\n" % addr)
-                else:
-                    sockfd.send('0')
-                    SOCKET_LIST.remove(sockfd)
+                # if log_in(username.rstrip(), password.rstrip()):
+                #     print "Client (%s, %s) connected" % addr
+                #     sockfd.send('1')
+                #     broadcast(server_socket, sockfd, "[%s:%s] entered our chatting room\n" % addr)
+                # else:
+                #     sockfd.send('0')
+                #     SOCKET_LIST.remove(sockfd)
              
             # a message from a client, not a new connection
             else:
