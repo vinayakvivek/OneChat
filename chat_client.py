@@ -34,6 +34,7 @@ def chat_client():
 
         if s.recv(RECV_BUFFER).rstrip() == '1':
             print('logged in !')
+            sys.stdout.write('[Me] '); sys.stdout.flush()  
             break
         else:
             print('Invalid username/password! pls try again')
