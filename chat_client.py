@@ -26,18 +26,40 @@ def chat_client():
     # sys.stdout.write('[Me] '); sys.stdout.flush()
     
     while True:
-        username = raw_input('username : ')
-        s.send(username)
+        cmd = raw_input('command : ')
 
-        password = raw_input('password : ')
-        s.send(password)
+        s.send(cmd)
 
-        if s.recv(RECV_BUFFER).rstrip() == '1':
-            print('logged in !')
-            sys.stdout.write('[Me] '); sys.stdout.flush()  
-            break
+        if cmd == '\\login':
+            username = raw_input('username : ')
+            s.send(username)
+
+            password = raw_input('password : ')
+            s.send(password)
+
+            if s.recv(RECV_BUFFER).rstrip() == '1':
+                print('logged in !')
+                sys.stdout.write('[Me] '); sys.stdout.flush()  
+                break
+            else:
+                print('Invalid username/password! pls try again')
+        elif cmd == '\\register':
+            username = raw_input('username : ')
+            s.send(username)
+
+            password = raw_input('password : ')
+            s.send(password)
+
+            status = s.recv(RECV_BUFFER).rstrip()
+            if status == '1':
+                print('registered successfully!')
+                sys.stdout.write('[Me] '); sys.stdout.flush()  
+                break
+            else:
+                print(status)
         else:
-            print('Invalid username/password! pls try again')
+            msg = s.recv(RECV_BUFFER).rstrip()
+            print(msg)
             
      
     while 1:
