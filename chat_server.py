@@ -23,22 +23,48 @@ RECV_BUFFER = 4096
 #       0 - unsuccessful 
 #####################
 
+def get_username(client_socket):
+    """
+    return : username linked to client_socket
+    """
+    for s in SOCKET_NICK_MAP:
+        if s[0] == client_socket:
+            return s[1]
+
+    return None
+
+def disconnect_socket(client_socket):
+    client_socket.close()
+    
+    # remove from SOCKET_LIST
+    if client_socket in SOCKET_LIST:
+        SOCKET_LIST.remove(client_socket)
+
+    # remove from SOCKET_NICK_LIST
+    for s in SOCKET_NICK_MAP:
+        if s[0] == client_socket:
+            SOCKET_NICK_MAP.remove(s)
+            break
+
+    print(SOCKET_NICK_MAP)
+
+def add_socket(client_socket, username):
+    SOCKET_LIST.append(client_socket)
+    SOCKET_NICK_MAP.append((client_socket, username))
+    print(SOCKET_NICK_MAP)
+
 def send(client_socket, message):
     try:
         client_socket.send(message)
         return True
     except:
         # disconnect and remove broken socket
-        client_socket.close()
-        if client_socket in SOCKET_LIST:
-            SOCKET_LIST.remove(client_socket)
+        disconnect_socket(client_socket)
         return False
 
 def log_out(server_socket, client_socket, addr):
     broadcast(server_socket, client_socket, "\r" + "Client (%s, %s) is offline\n" % addr) 
-    client_socket.close()
-    if client_socket in SOCKET_LIST:
-        SOCKET_LIST.remove(client_socket)
+    disconnect_socket(client_socket)
 
 def client_thread(server_socket, client_socket, addr):
     
@@ -51,7 +77,9 @@ def client_thread(server_socket, client_socket, addr):
 
             if not check_username(username):
                 new_user(username, password)
+
                 send(client_socket, '1')
+                add_socket(client_socket, username)
                 break
             else:
                 send(client_socket, 'Nick already taken!')
@@ -62,8 +90,9 @@ def client_thread(server_socket, client_socket, addr):
 
             if check_credentials(username, password):
                 print(client_socket.getpeername(), ' joined!')
+
                 send(client_socket, '1')
-                SOCKET_LIST.append(client_socket)
+                add_socket(client_socket, username)
                 broadcast(server_socket, client_socket, "\r" + "Client (%s, %s) has joined the room\n" % addr) 
                 break
             else:
@@ -120,6 +149,8 @@ def chat_server():
             # a new connection request recieved
             if sock == server_socket: 
                 sockfd, addr = server_socket.accept()
+                # print('connected')
+                # sockfd.send('connection established!')
                 thread.start_new_thread(client_thread, (server_socket, sockfd, addr))
          
             # a message from a client, not a new connection
@@ -137,8 +168,7 @@ def chat_server():
                             broadcast(server_socket, sock, "\r" + '[' + str(sock.getpeername()) + '] ' + data)  
                     else:
                         # remove the socket that's broken    
-                        if sock in SOCKET_LIST:
-                            SOCKET_LIST.remove(sock)
+                        disconnect_socket(client_socket)
 
                         # at this stage, no data means probably the connection has been broken
                         broadcast(server_socket, sock, "\r" + "Client (%s, %s) is offline\n" % addr) 
