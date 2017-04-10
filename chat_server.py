@@ -20,7 +20,8 @@ RECV_BUFFER = 4096
 # 
 # server -> client :
 #       1 - login/registration successful
-#       0 - unsuccessful 
+#       0 - invalid credentials
+#       2 - Already logged in
 #####################
 
 def get_username(client_socket):
@@ -32,6 +33,15 @@ def get_username(client_socket):
             return s[1]
 
     return None
+
+def is_already_logged_in(username):
+    """
+    return: True if the user is already logged in
+    """
+    for s in SOCKET_NICK_MAP:
+        if s[1] == username:
+            return True
+    return False
 
 def disconnect_socket(client_socket):
     client_socket.close()
@@ -61,7 +71,7 @@ def send(client_socket, message):
         return False
 
 def log_out(server_socket, client_socket, addr):
-    broadcast(server_socket, client_socket, "\r" + "Client (%s, %s) is offline\n" % addr) 
+    broadcast(server_socket, client_socket, "\r" + get_username(client_socket) + " is offline\n") 
     disconnect_socket(client_socket)
 
 def client_thread(server_socket, client_socket, addr):
@@ -90,10 +100,6 @@ def client_thread(server_socket, client_socket, addr):
 
         elif cmd == '\\login':
             print('user loggin in : ', addr)
-            # username = client_socket.recv(RECV_BUFFER).rstrip()
-            # print('username : ', username)
-            # password = client_socket.recv(RECV_BUFFER).rstrip()
-            # print('pass : ', password)
 
             user_pass = client_socket.recv(RECV_BUFFER).rstrip()
             user_pass = user_pass.split(',')
@@ -103,12 +109,15 @@ def client_thread(server_socket, client_socket, addr):
             username = user_pass[0]
             password = user_pass[1]
 
-            if check_credentials(username, password):
+            if is_already_logged_in(username):
+                send(client_socket, '2')
+                print('user already logged in')
+            elif check_credentials(username, password):
                 print(client_socket.getpeername(), ' joined!')
 
                 send(client_socket, '1')
                 add_socket(client_socket, username)
-                broadcast(server_socket, client_socket, "\r" + "Client (%s, %s) has joined the room\n" % addr) 
+                broadcast(server_socket, client_socket, "\r" + get_username(client_socket) + " has joined the room\n") 
                 break
             else:
                 send(client_socket, '0')
@@ -133,7 +142,7 @@ def chat_server():
 
         # get the list sockets which are ready to be read through select
         # 4th arg, time_out  = 0 : poll and never block
-        ready_to_read, ready_to_write , in_error = select.select(SOCKET_LIST,[],[],0)
+        ready_to_read, _, _ = select.select(SOCKET_LIST,[],[],0)
 
         # print(ready_to_read)
       
@@ -151,14 +160,13 @@ def chat_server():
                 try:
                     # receiving data from the socket.
                     data = sock.recv(RECV_BUFFER)
-                    print(data)
+                    # print(data)
                     if data:
                         if data.rstrip() == '\\logout':
                             log_out(server_socket, sock, addr)
-                            print('loggin out')
                         else:
                             # there is something in the socket
-                            broadcast(server_socket, sock, "\r" + '[' + str(sock.getpeername()) + '] ' + data)  
+                            broadcast(server_socket, sock, "\r" + '[' + get_username(sock) + '] : ' + data)  
                     else:
                         log_out(server_socket, sock, addr)
 

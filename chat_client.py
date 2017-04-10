@@ -36,12 +36,16 @@ def chat_client():
             
             s.send(str(username + ',' + password))
 
-            if s.recv(RECV_BUFFER).rstrip() == '1':
+            status = s.recv(RECV_BUFFER).rstrip()
+            if status == '1':
                 print('logged in !')
                 sys.stdout.write('[Me] '); sys.stdout.flush()  
                 break
-            else:
-                print('Invalid username/password! pls try again')
+            elif status == '2':
+                print('User already logged in')
+            elif status == '0':
+                print('Invalid credentials')
+
         elif cmd == '\\register':
             username = raw_input('username : ')
             s.send(username)
