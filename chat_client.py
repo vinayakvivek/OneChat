@@ -39,6 +39,9 @@ def chat_client():
             status = s.recv(RECV_BUFFER).rstrip()
             if status == '1':
                 print('logged in !')
+                s.send('1')
+                logged_users_list = s.recv(RECV_BUFFER).rstrip()
+                print(logged_users_list)
                 sys.stdout.write('[Me] '); sys.stdout.flush()  
                 break
             elif status == '2':
@@ -48,14 +51,16 @@ def chat_client():
 
         elif cmd == '\\register':
             username = raw_input('username : ')
-            s.send(username)
-
             password = raw_input('password : ')
-            s.send(password)
+            
+            s.send(str(username + ',' + password))
 
             status = s.recv(RECV_BUFFER).rstrip()
             if status == '1':
                 print('registered successfully!')
+                s.send('1')
+                logged_users_list = s.recv(RECV_BUFFER).rstrip()
+                print(logged_users_list)
                 sys.stdout.write('[Me] '); sys.stdout.flush()  
                 break
             else:
