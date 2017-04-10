@@ -32,10 +32,9 @@ def chat_client():
 
         if cmd == '\\login':
             username = raw_input('username : ')
-            s.send(username)
-
             password = raw_input('password : ')
-            s.send(password)
+            
+            s.send(str(username + ',' + password))
 
             if s.recv(RECV_BUFFER).rstrip() == '1':
                 print('logged in !')

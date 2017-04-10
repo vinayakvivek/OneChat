@@ -46,8 +46,6 @@ def disconnect_socket(client_socket):
             SOCKET_NICK_MAP.remove(s)
             break
 
-    print(SOCKET_NICK_MAP)
-
 def add_socket(client_socket, username):
     SOCKET_LIST.append(client_socket)
     SOCKET_NICK_MAP.append((client_socket, username))
@@ -55,7 +53,7 @@ def add_socket(client_socket, username):
 
 def send(client_socket, message):
     try:
-        client_socket.send(message)
+        client_socket.send(message + '\n')
         return True
     except:
         # disconnect and remove broken socket
@@ -71,9 +69,15 @@ def client_thread(server_socket, client_socket, addr):
     while True:
         cmd = client_socket.recv(RECV_BUFFER).rstrip()
         if cmd == '\\register':
-            # get username
-            username = client_socket.recv(RECV_BUFFER).rstrip()
-            password = client_socket.recv(RECV_BUFFER).rstrip()
+            print('New user registering : ', addr)
+            
+            user_pass = client_socket.recv(RECV_BUFFER).rstrip()
+            user_pass = user_pass.split(',')
+
+            print(user_pass)
+
+            username = user_pass[0]
+            password = user_pass[1]
 
             if not check_username(username):
                 new_user(username, password)
@@ -85,8 +89,19 @@ def client_thread(server_socket, client_socket, addr):
                 send(client_socket, 'Nick already taken!')
 
         elif cmd == '\\login':
-            username = client_socket.recv(RECV_BUFFER).rstrip()
-            password = client_socket.recv(RECV_BUFFER).rstrip()
+            print('user loggin in : ', addr)
+            # username = client_socket.recv(RECV_BUFFER).rstrip()
+            # print('username : ', username)
+            # password = client_socket.recv(RECV_BUFFER).rstrip()
+            # print('pass : ', password)
+
+            user_pass = client_socket.recv(RECV_BUFFER).rstrip()
+            user_pass = user_pass.split(',')
+
+            print(user_pass)
+
+            username = user_pass[0]
+            password = user_pass[1]
 
             if check_credentials(username, password):
                 print(client_socket.getpeername(), ' joined!')
@@ -100,31 +115,6 @@ def client_thread(server_socket, client_socket, addr):
                 print('invalid username/pass')
         else:
             send(client_socket, 'Invalid command! try again')
-
-
-# def log_in(server_socket, client_socket, addr):
-#     i = 0
-#     while True:
-#         print(i)
-#         i += 1
-        
-#         print('get username : ')
-#         username = client_socket.recv(RECV_BUFFER).rstrip()
-#         print(username)
-
-#         print('get pass : ')
-#         password = client_socket.recv(RECV_BUFFER).rstrip()
-#         print(password)
-
-#         if username == 'user' and password == 'pass':
-#             print(client_socket.getpeername(), ' joined!')
-#             send(client_socket, '1')
-#             SOCKET_LIST.append(client_socket)
-#             broadcast(server_socket, client_socket, "\r" + "Client (%s, %s) has joined the room\n" % addr) 
-#             break
-#         else:
-#             send(client_socket, '0')
-#             print('invalid username/pass')
 
 
 def chat_server():
@@ -143,13 +133,15 @@ def chat_server():
 
         # get the list sockets which are ready to be read through select
         # 4th arg, time_out  = 0 : poll and never block
-        ready_to_read, ready_to_write , in_error = select.select(SOCKET_LIST,[],[],1)
+        ready_to_read, ready_to_write , in_error = select.select(SOCKET_LIST,[],[],0)
+
+        # print(ready_to_read)
       
         for sock in ready_to_read:
             # a new connection request recieved
             if sock == server_socket: 
                 sockfd, addr = server_socket.accept()
-                # print('connected')
+                print('connected')
                 # sockfd.send('connection established!')
                 thread.start_new_thread(client_thread, (server_socket, sockfd, addr))
          
@@ -159,6 +151,7 @@ def chat_server():
                 try:
                     # receiving data from the socket.
                     data = sock.recv(RECV_BUFFER)
+                    print(data)
                     if data:
                         if data.rstrip() == '\\logout':
                             log_out(server_socket, sock, addr)
@@ -167,15 +160,11 @@ def chat_server():
                             # there is something in the socket
                             broadcast(server_socket, sock, "\r" + '[' + str(sock.getpeername()) + '] ' + data)  
                     else:
-                        # remove the socket that's broken    
-                        disconnect_socket(client_socket)
-
-                        # at this stage, no data means probably the connection has been broken
-                        broadcast(server_socket, sock, "\r" + "Client (%s, %s) is offline\n" % addr) 
+                        log_out(server_socket, sock, addr)
 
                 # exception 
                 except:
-                    broadcast(server_socket, sock, "\r" + "Client (%s, %s) is offline\n" % addr)
+                    log_out(server_socket, sock, addr)
                     continue
 
     server_socket.close()
