@@ -72,7 +72,7 @@ def send(client_socket, message):
 
 def log_out(server_socket, client_socket, addr):
     # tell everyone that user is going offline
-    broadcast(server_socket, client_socket, "\r" + get_username(client_socket) + " is offline\n") 
+    broadcast(server_socket, client_socket, "\r" + "[offline] " + get_username(client_socket) + " is offline\n") 
 
     # disconnect the socket and remove it from SOCKET_LIST
     disconnect_socket(client_socket)
@@ -95,7 +95,7 @@ def log_in(server_socket, client_socket, username):
     add_socket(client_socket, username)
 
     # tell everyone that a new user has joined the room
-    broadcast(server_socket, client_socket, "\r" + get_username(client_socket) + " has joined the room\n") 
+    broadcast(server_socket, client_socket, "\r" + "[join] " + get_username(client_socket) + " has joined the room\n") 
 
 def get_user_data(client_socket):
 
