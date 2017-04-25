@@ -3,14 +3,19 @@
 import sys, socket, select
 
 RECV_BUFFER = 4096
+
+# online_users = []
  
 def chat_client():
-    if(len(sys.argv) < 3) :
-        print 'Usage : python chat_client.py hostname port'
-        sys.exit()
+    # if(len(sys.argv) < 3) :
+    #     print 'Usage : python chat_client.py hostname port'
+    #     sys.exit()
 
-    host = sys.argv[1]
-    port = int(sys.argv[2])
+    # host = sys.argv[1]
+    # port = int(sys.argv[2])
+
+    host = 'localhost'
+    port = 9009
      
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(2)

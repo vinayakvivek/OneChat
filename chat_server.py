@@ -34,6 +34,16 @@ def get_username(client_socket):
 
     return None
 
+def get_socket(username):
+    """
+    return : client socket linked to username
+    """
+    for s in SOCKET_NICK_MAP:
+        if s[1] == username:
+            return s[0]
+
+    return None
+
 def is_already_logged_in(username):
     """
     return: True if the user is already logged in
@@ -214,12 +224,26 @@ def chat_server():
 
                     # if recieved data is not empty
                     if data:
+
+                        data = data.rstrip()
+                        message = data
+                        to_user = 'broadcast'
+
+                        m = data.split('@')
+
+                        if len(m) > 1:
+                            to_user = m[0]
+                            message = m[1]
+
                         # user wants to logout
-                        if data.rstrip() == '\\logout':
+                        if data == '\\logout':
                             log_out(server_socket, sock, addr)
+
+                        elif to_user != 'broadcast':
+                            send(get_socket(to_user), "\r" + '[' + get_username(sock) + '] : ' +  message)
                         else:
                             # send it to all connected users
-                            broadcast(server_socket, sock, "\r" + '[' + get_username(sock) + '] : ' + data)  
+                            broadcast(server_socket, sock, "\r" + '[' + get_username(sock) + '] : ' + message)  
                     else:
                         # empty data --> broken connection --> logout
                         log_out(server_socket, sock, addr)
