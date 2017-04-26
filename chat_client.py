@@ -47,6 +47,11 @@ def chat_client():
                 s.send('1')
                 logged_users_list = s.recv(RECV_BUFFER).rstrip()
                 print(logged_users_list)
+
+                # s.send('1')
+                messages = s.recv(RECV_BUFFER).rstrip()
+                print(messages)
+
                 sys.stdout.write('[Me] '); sys.stdout.flush()  
                 break
             elif status == '2':

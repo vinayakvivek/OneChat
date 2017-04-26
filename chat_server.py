@@ -3,6 +3,47 @@
 import sys, socket, select
 import thread
 from utils import *
+import json
+# database
+import sqlite3
+
+#########################################
+
+conn = sqlite3.connect('onechat-test.db', check_same_thread=False)
+c = conn.cursor()
+
+QUERY_CREATE_TABLE = '''
+    CREATE TABLE IF NOT EXISTS messages(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL,
+        dest TEXT NOT NULL,
+        message TEXT
+    );
+'''
+
+# Create table
+c.execute(QUERY_CREATE_TABLE)
+
+def save_message(source, dest, message):
+    """
+    saves message in the file
+    format : <source>,<dest>,<message>,<send_status>
+    """
+    # with open('messages.csv', 'wb') as f:  # Just use 'w' mode in 3.x
+    #     w = csv.writer(f, delimiter=',')
+    #     w.writerow([source, dest, message, False])
+
+    # Insert a row of data
+    t = (source, dest, message, )
+    c.execute("INSERT INTO messages (source, dest, message) VALUES (?, ?, ?)", t)
+
+    # commit changes
+    conn.commit()
+
+def show_database():
+    pass
+
+#########################################
 
 HOST = 'localhost' 
 PORT = 9009
@@ -69,7 +110,7 @@ def disconnect_socket(client_socket):
 def add_socket(client_socket, username):
     SOCKET_LIST.append(client_socket)
     SOCKET_NICK_MAP.append((client_socket, username))
-    print(SOCKET_NICK_MAP)
+    # print(SOCKET_NICK_MAP)
 
 def send(client_socket, message):
     try:
@@ -79,6 +120,26 @@ def send(client_socket, message):
         # disconnect and remove from SOCKET_LIST
         disconnect_socket(client_socket)
         return False
+
+def send_pending_messages(client_socket, username):
+    # get messages pending to <username> from database
+    t = (username, )
+    c.execute("SELECT * FROM messages WHERE dest=?", t)
+
+    pending_messages = c.fetchall()
+    c.execute("DELETE FROM messages WHERE dest=?", t)
+    conn.commit()
+
+    message_dict = {'messages' : []}
+    
+    for row in pending_messages:
+        message_dict['messages'].append({row[0]: list(row)[1:]})
+
+    m = json.dumps(message_dict)
+    
+    print(m)
+    send(client_socket, m)
+
 
 def log_out(server_socket, client_socket, addr):
     # tell everyone that user is going offline
@@ -104,8 +165,12 @@ def log_in(server_socket, client_socket, username):
     # add user to the SOCKET_LIST and SOCKET_NICK_MAP
     add_socket(client_socket, username)
 
+    # send pending messages
+    send_pending_messages(client_socket, username)
+
     # tell everyone that a new user has joined the room
     broadcast(server_socket, client_socket, "\r" + "[join] " + get_username(client_socket) + " has joined the room\n") 
+
 
 def get_user_data(client_socket):
 
@@ -115,7 +180,7 @@ def get_user_data(client_socket):
     # message recieved from client is of the form "<username>,<password>" so split it
     user_pass = user_pass.split(',')
 
-    print(user_pass)
+    # print(user_pass)
     return [user_pass[0], user_pass[1]]
 
 def client_thread(server_socket, client_socket, addr):
@@ -172,6 +237,7 @@ def client_thread(server_socket, client_socket, addr):
                 # credentials are invalid
                 send(client_socket, '0')
                 print('invalid username/pass')
+        
         else:
             # command is invalid
             send(client_socket, 'Invalid command! try again')
@@ -222,6 +288,12 @@ def chat_server():
                     # receive data from the socket.
                     data = sock.recv(RECV_BUFFER)
 
+                    # username linked to sock
+                    username = get_username(sock)
+
+                    # DEBUG 
+                    # show_database()
+
                     # if recieved data is not empty
                     if data:
 
@@ -229,6 +301,7 @@ def chat_server():
                         message = data
                         to_user = 'broadcast'
 
+                        # if data is of the form <username>@<message> then send it to that user
                         m = data.split('@')
 
                         if len(m) > 1:
@@ -240,10 +313,15 @@ def chat_server():
                             log_out(server_socket, sock, addr)
 
                         elif to_user != 'broadcast':
-                            send(get_socket(to_user), "\r" + '[' + get_username(sock) + '] : ' +  message)
+                            # message to a specific user
+                            # check if to_user is online
+                            if to_user in [x[1] for x in SOCKET_NICK_MAP]:
+                                send(get_socket(to_user), "\r" + '[' + username + '] : ' +  message)
+                            else:
+                                save_message(username, to_user, message)
                         else:
                             # send it to all connected users
-                            broadcast(server_socket, sock, "\r" + '[' + get_username(sock) + '] : ' + message)  
+                            broadcast(server_socket, sock, "\r" + '[' + username + '] : ' + message)  
                     else:
                         # empty data --> broken connection --> logout
                         log_out(server_socket, sock, addr)

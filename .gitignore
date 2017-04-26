@@ -1,2 +1,4 @@
 *.pyc
 aync_server/
+test.py
+*.db
