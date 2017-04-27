@@ -8,6 +8,14 @@ import json
 import sqlite3
 
 #########################################
+# LDAP
+
+import ldap
+
+ldap_conn = ldap.initialize('ldap://cs252lab.cse.iitb.ac.in:389/')
+base_dn = "dc=cs252lab,dc=cse,dc=iitb,dc=ac,dc=in"
+
+#########################################
 
 conn = sqlite3.connect('onechat-test.db', check_same_thread=False)
 c = conn.cursor()
@@ -26,12 +34,9 @@ c.execute(QUERY_CREATE_TABLE)
 
 def save_message(source, dest, message):
     """
-    saves message in the file
-    format : <source>,<dest>,<message>,<send_status>
+    saves message in the database
+    format : <id>,<source>,<dest>,<message>
     """
-    # with open('messages.csv', 'wb') as f:  # Just use 'w' mode in 3.x
-    #     w = csv.writer(f, delimiter=',')
-    #     w.writerow([source, dest, message, False])
 
     # Insert a row of data
     t = (source, dest, message, )
@@ -44,9 +49,6 @@ def show_database():
     pass
 
 #########################################
-
-HOST = 'localhost' 
-PORT = 9009
 
 SOCKET_LIST = []
 SOCKET_NICK_MAP = [] # list of tuples of the form (socket, username)
@@ -133,7 +135,11 @@ def send_pending_messages(client_socket, username):
     message_dict = {'messages' : []}
     
     for row in pending_messages:
-        message_dict['messages'].append({row[0]: list(row)[1:]})
+        message_dict['messages'].append({
+                    'source': row[1],
+                    'dest': row[2],
+                    'message': row[3]
+                })
 
     m = json.dumps(message_dict)
     
@@ -222,7 +228,7 @@ def client_thread(server_socket, client_socket, addr):
 
             # check if the user is already logged in
             if is_already_logged_in(username):
-                send(client_socket, '2')
+                send(client_socket, 'user already logged in')
                 print('user already logged in')
 
             # check the validity of credentials
@@ -235,8 +241,39 @@ def client_thread(server_socket, client_socket, addr):
                 break
             else:
                 # credentials are invalid
-                send(client_socket, '0')
+                send(client_socket, 'invalid username/pass')
                 print('invalid username/pass')
+
+        elif cmd == '\\ldaplogin':
+            print('ldap user logging in : ', addr)
+
+            # recieve username and password from client
+            username, password = get_user_data(client_socket)
+
+            # check if the user is already logged in
+            if is_already_logged_in(username):
+                send(client_socket, 'user already logged in')
+                print('user already logged in') 
+            else:
+                # try ldap login
+                user_dn = "cn=" + username + "," + base_dn
+
+                try:
+                    ldap_conn.protocol_version = ldap.VERSION3
+                    print(ldap_conn.simple_bind_s(user_dn, password))
+                    # log the user in
+                    log_in(server_socket, client_socket, username)
+
+                except ldap.INVALID_CREDENTIALS:
+                    send(client_socket, 'invalid username/password')
+                    print "Your username or password is incorrect."
+
+                except ldap.LDAPError, e:
+                    send(client_socket, 'error logging in')
+                    if type(e.message) == dict and e.message.has_key('desc'):
+                        print e.message['desc']
+                    else: 
+                        print e
         
         else:
             # command is invalid
@@ -263,7 +300,7 @@ def chat_server():
     # add server socket object to the list of readable connections
     SOCKET_LIST.append(server_socket)
  
-    print("Server started on port " + str(PORT))
+    print("Server started at " + HOST + " on port " + str(PORT))
  
     while True:
 
@@ -316,12 +353,12 @@ def chat_server():
                             # message to a specific user
                             # check if to_user is online
                             if to_user in [x[1] for x in SOCKET_NICK_MAP]:
-                                send(get_socket(to_user), "\r" + '[' + username + '] : ' +  message)
+                                send(get_socket(to_user), "\r" + 'message ' + username + ' ' + message)
                             else:
                                 save_message(username, to_user, message)
                         else:
                             # send it to all connected users
-                            broadcast(server_socket, sock, "\r" + '[' + username + '] : ' + message)  
+                            broadcast(server_socket, sock, "\r" + 'broadcast ' + username + ' ' + message)  
                     else:
                         # empty data --> broken connection --> logout
                         log_out(server_socket, sock, addr)

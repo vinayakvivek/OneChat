@@ -1,6 +1,7 @@
 # chat_client.py
 
 import sys, socket, select
+from utils import *
 
 RECV_BUFFER = 4096
 
@@ -13,16 +14,13 @@ def chat_client():
 
     # host = sys.argv[1]
     # port = int(sys.argv[2])
-
-    host = 'localhost'
-    port = 9009
      
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(2)
      
     # connect to remote host
     try :
-        s.connect((host, port))
+        s.connect((HOST, PORT))
     except :
         print 'Unable to connect'
         sys.exit()
@@ -35,7 +33,7 @@ def chat_client():
 
         s.send(cmd)
 
-        if cmd == '\\login':
+        if cmd == '\\login' or cmd == '\\ldaplogin':
             username = raw_input('username : ')
             password = raw_input('password : ')
             
@@ -54,10 +52,8 @@ def chat_client():
 
                 sys.stdout.write('[Me] '); sys.stdout.flush()  
                 break
-            elif status == '2':
-                print('User already logged in')
-            elif status == '0':
-                print('Invalid credentials')
+            else:
+                print(status)
 
         elif cmd == '\\register':
             username = raw_input('username : ')

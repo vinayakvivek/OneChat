@@ -1,5 +1,9 @@
 import csv
 
+### host and port details
+HOST = 'localhost'
+PORT = 9009
+
 def check_credentials(username, password):
 	"""
 	:return True if credentials exists in database
