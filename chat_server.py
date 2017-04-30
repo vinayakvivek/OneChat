@@ -263,6 +263,7 @@ def client_thread(server_socket, client_socket, addr):
                     print(ldap_conn.simple_bind_s(user_dn, password))
                     # log the user in
                     log_in(server_socket, client_socket, username)
+                    break
 
                 except ldap.INVALID_CREDENTIALS:
                     send(client_socket, 'invalid username/password')
